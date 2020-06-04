@@ -3,6 +3,7 @@ import numpy as np
 
 
 def sigmoid(x):
+    # x = x.astype(np.float32)
     return 1 / (1 + np.exp(-x))
 
 
@@ -23,63 +24,63 @@ def gauss(x):
 
 
 def f(x):
-    return -0.05 * x * x + 15
+    return 0.0001*x**4+0.003*x**3+0.0002*x**2+0.001*x+3
 
 
 class Model:
-    numNuro = 64
     alpha = 0.001
-    Yw = np.random.rand(numNuro)
-    Yb = np.random.rand(numNuro)
-    Zw = np.random.rand(numNuro)
-    b = np.random.rand()
+    Neuron1 = 128
+    Neuron2 = 128
+    Wx = np.random.random((Neuron1, 2))
+    Wy = np.random.random((Neuron2, Neuron1 + 1))
+    Wz = np.random.random((1, Neuron2 + 1))
 
     def fit(self):
-        for i in range(20000):
+        for i in range(10000):
             for j in range(len(X)):
                 self.learn(X[j], T[j])
 
     def learn(self, k, t):
-        Iy = self.Yw * k + self.Yb
-        y = sigmoid(Iy)
-        Iz = self.Zw * y
-        z = np.sum(Iz) + self.b
-        deltab = (z - t)
-        self.b = self.b - self.alpha * deltab
-        deltaZw = deltab * y
-        self.Zw = self.Zw - self.alpha * deltaZw
-        deltaY = deltab * self.Zw
-        deltaYb = deltaY * y * (1 - y)
-        self.Yb = self.Yb - self.alpha * deltaYb
-        deltaYw = deltaY * k * y * (1 - y)
-        self.Yw = self.Yw - self.alpha * deltaYw
+        out = self.func(k)
+        Q, z, Iz, y, Iy, = out[0], out[1], out[2], out[3], out[4]
+        deltaQ = (out[0] - t)
+        deltaWz = deltaQ * np.vstack((z, np.array([[1]])))
+
+        self.Wz = self.Wz - self.alpha * deltaWz.T
+        tempZ = np.delete(self.Wz.T, len(self.Wz) - 1, 0)
+        deltaWy = np.dot(deltaQ * (tempZ * (z * (1 - z))), np.vstack((y, np.array([[1]]))).T)
+        self.Wy = self.Wy - self.alpha * deltaWy
+        # print(self.Wy,y)
+        # print(self.Wy,deltaWy)
+        tempX = np.delete(self.Wy.T, len(self.Wy) - 1, 0)
+        # print(out[4])
+        deltaWx = deltaQ * np.dot(np.dot(tempX, tempZ * (z * (1 - z))) * y * (1 - y), np.array([[k, 1]]))
+        self.Wx = self.Wx - self.alpha * deltaWx
         return 1
 
-    def gosa(self):
-        return np.mean((self.func(X) - T) * self.dens1(X)), np.mean(self.func(X) - T)
+    def func(self, inPut):
+        Iy = np.dot(self.Wx, np.array([[inPut], [1]]))
+        y = sigmoid(Iy)
+        Iz = np.dot(self.Wy, np.vstack((y, np.array([[1]]))))
+        z = sigmoid(Iz)
+        Q = np.dot(self.Wz, np.vstack((z, np.array([[1]]))))
+        return Q, z, Iz, y, Iy
 
-    def func(self, x):
+    def out(self, x):
         ret = []
-        print(self.Zw, self.b)
         for i in x:
-            Iy = self.Yw * i + self.Yb
-            y = sigmoid(Iy)
-            Iz = self.Zw * y
-            ZZ = np.sum(Iz) + self.b
-            ret.append(ZZ)
-        return np.array(ret)
+            ret.append(self.func(i)[0][0])
+        return ret
 
 
 m = Model()
-np.random.seed(1)
-X = np.random.rand(128) * 60 - 30
-T = f(X) + np.random.randn(128) * 2
-
-x = np.linspace(-30, 30, 100)
+# np.random.seed(1)
+X = np.random.rand(128) * 40 - 20
+T = f(X)+np.random.randn(128)
+x = np.linspace(-20, 20, 100)
 m.fit()
-
 plt.plot(X, T, 'o')
-plt.plot(x, m.func(x))
+plt.plot(x, m.out(x))
+print(m.Wz)
 plt.plot(x, f(x))
-
 plt.show()
